@@ -70,14 +70,8 @@ const generateId = () => {
   return maxId + 1
 }
 
-app.post('/api/notes', (request, response) => {
+app.post('/api/notes', (request, response, next) => {
   const body = request.body
-
-  if (!body.content) {
-    return response.status(400).json({ 
-      error: 'content missing' 
-    })
-  }
 
   const note = new Note({
     content: body.content,
@@ -85,7 +79,7 @@ app.post('/api/notes', (request, response) => {
   })
   note.save().then(savedNote => {
       response.json(savedNote)
-    })
+    }).catch(error => next(error))
 })
 
 app.get('/api/notes/:id', (request, response, next) => {
@@ -113,16 +107,19 @@ app.put('/api/notes/:id', (request, response, next) => {
     important: bod.important
   }
   
-  Note.findByIdAndUpdate(request.params.id, note, {new: true}).then(
+  Note.findByIdAndUpdate(request.params.id, note, {new: true, runValidators: true, context: "query"}).then(
     updatedNote => response.json(updatedNote)
   ).catch(error => next(error))
 })
 
 const errorHandler = (err, req, res, next) => {
-  console.log(err.messsage)
+  console.log(err.message)
 
   if(err.name === 'CastError'){
     return res.status(400).send({ error: 'malformatted id '})
+  }
+  else if( err.name === "ValidationError"){
+    return res.status(400).json( {error: err.message} )
   }
   next(error)
 }
